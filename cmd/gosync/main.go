@@ -13,6 +13,7 @@ import (
 	"runtime/debug"
 	"strings"
 
+	"github.com/sevlyar/go-daemon"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
@@ -29,6 +30,7 @@ func main() {
 
 	// 处理命令行参数
 	configFile := flag.String("config", "", "configuration file")
+	isDaemon := flag.Bool("daemon", false, "run as a service")
 	showVersion := flag.Bool("version", false, "show version information")
 	flag.Parse()
 
@@ -84,6 +86,27 @@ func main() {
 		logrus.SetOutput(logger)
 	}
 
+	// 后台进程
+	if *isDaemon {
+		// 创建一个新的守护进程
+		ctx := &daemon.Context{
+			PidFileName: "/run/gosync.pid", // PID文件保存位置
+			PidFilePerm: 0644,
+		}
+		// 在后台启动进程
+		child, err := ctx.Reborn()
+		if err != nil {
+			logrus.WithError(err).Fatalf("Start daemon error: %s", err.Error())
+			os.Exit(2)
+		}
+		if child != nil {
+			// 如果我们是子进程（即守护进程本身）
+			logrus.Info("GO sync run as a daemon.")
+			return
+		}
+		defer ctx.Release() // 当程序结束时释放守护进程资源
+	}
+
 	// 初始化RemoteSync
 	rsync.Init(&config.Rsync)
 
@@ -94,7 +117,7 @@ func main() {
 	err = job.Start(config, &queue)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Start scheduled job error: %s", err.Error())
-		os.Exit(2)
+		os.Exit(3)
 	}
 	defer job.Stop()
 
@@ -102,7 +125,7 @@ func main() {
 	err = watcher.Start(&config.Rsync, &queue)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Start watcher error: %s", err.Error())
-		os.Exit(3)
+		os.Exit(4)
 	}
 }
 
