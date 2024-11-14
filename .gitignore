@@ -25,4 +25,6 @@ go.work.sum
 .env
 
 # test file
+gosync.yml
 cmd/test/
+test_scripts/

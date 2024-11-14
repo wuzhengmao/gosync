@@ -12,7 +12,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func Start(config conf.RsyncConfig, queue *Queue) error {
+func Start(config *conf.RsyncConfig, queue *Queue) error {
 	watchDir := config.RootPath
 	if !strings.HasSuffix(watchDir, "/") {
 		watchDir += "/"
@@ -38,8 +38,10 @@ func Start(config conf.RsyncConfig, queue *Queue) error {
 	logrus.Infof("Watch %s started.", watchDir)
 
 	// 开启同步任务
-	logrus.Info("Starting full sync first...")
 	go queue.Start()
+	if config.FullSync == "startup" {
+		queue.ScheduleFullSync()
+	}
 
 	// 创建用于接收事件的缓冲区
 	buf := make([]byte, 4096)

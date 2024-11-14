@@ -43,15 +43,25 @@ func (action Action) String() string {
 	return str
 }
 
-var config *conf.QueueConfig
+type Queue struct {
+	config   *conf.QueueConfig
+	actions  *[]Action
+	fullSync bool
+}
 
-type Queue []Action
+func CreateQueue(c *conf.QueueConfig) Queue {
+	return Queue{
+		config:   c,
+		actions:  &[]Action{},
+		fullSync: false,
+	}
+}
 
 func (queue *Queue) offer(method int, path string) {
 	now := time.Now().UnixMilli()
 	isDir := strings.HasSuffix(path, "/")
 	ignore := false
-	for _, action := range *queue {
+	for _, action := range *queue.actions {
 		if method == CREATE {
 			if action.Method == CREATE {
 				if action.IsDir && isParent(action.Path, path) {
@@ -84,9 +94,9 @@ func (queue *Queue) offer(method int, path string) {
 		logrus.Debugf("%s (ignore)", logStr(method, path, isDir))
 	} else {
 		drops := ""
-		for i := len(*queue) - 1; i >= 0; i-- {
+		for i := len(*queue.actions) - 1; i >= 0; i-- {
 			drop := false
-			action := (*queue)[i]
+			action := (*queue.actions)[i]
 			if method == CREATE {
 				if isDir {
 					if isParent(path, action.Path) {
@@ -114,11 +124,11 @@ func (queue *Queue) offer(method int, path string) {
 			}
 			if drop {
 				drops = fmt.Sprintf("\n    - %+v (drop)%s", action, drops)
-				*queue = append((*queue)[:i], (*queue)[i+1:]...)
+				*queue.actions = append((*queue.actions)[:i], (*queue.actions)[i+1:]...)
 			}
 		}
 		logrus.Debugf("%s%s", logStr(method, path, isDir), drops)
-		*queue = append(*queue, Action{Method: method, Path: path, IsDir: isDir, Timestamp: now})
+		*queue.actions = append((*queue.actions), Action{Method: method, Path: path, IsDir: isDir, Timestamp: now})
 	}
 }
 
@@ -147,29 +157,24 @@ func logStr(method int, path string, isDir bool) string {
 
 func (queue *Queue) take() []Action {
 	now := time.Now().UnixMilli()
-	for i, action := range *queue {
+	for i, action := range *queue.actions {
 		if now-action.Timestamp < 100 {
-			actions := (*queue)[:i]
-			*queue = (*queue)[i:]
+			actions := (*queue.actions)[:i]
+			*queue.actions = (*queue.actions)[i:]
 			return actions
 		}
 	}
-	actions := *queue
-	*queue = []Action{}
+	actions := *queue.actions
+	*queue.actions = []Action{}
 	return actions
-}
-
-func (queue *Queue) Init(c conf.QueueConfig) {
-	config = &c
 }
 
 func (queue *Queue) Start() {
 	actions := []Action{}
-	fullSync := true
 	waitRetry := int64(0)
 	for {
 		actions = append(actions, queue.take()...)
-		if fullSync {
+		if queue.fullSync {
 			if len(actions) > 0 {
 				log := ""
 				for _, action := range actions {
@@ -179,23 +184,23 @@ func (queue *Queue) Start() {
 				actions = []Action{}
 			}
 		} else {
-			if len(actions) > config.QueueCapacity {
-				logrus.Warnf("The size of sync task queue exceeds %d, it will be converted to perform full sync.", config.QueueCapacity)
-				fullSync = true
+			if len(actions) > queue.config.QueueCapacity {
+				logrus.Warnf("The size of sync task queue exceeds %d, it will be converted to perform full sync.", queue.config.QueueCapacity)
+				queue.fullSync = true
 				actions = []Action{}
 			}
 		}
 		if waitRetry == 0 || time.Now().UnixMilli() > waitRetry {
 			waitRetry = 0
-			if fullSync {
+			if queue.fullSync {
 				if rsync.FullSync() {
-					fullSync = false
+					queue.fullSync = false
 				} else {
-					waitRetry = time.Now().UnixMilli() + int64(config.RetryInterval)
-					logrus.Infof("Waiting %d milliseconds to retry...", config.RetryInterval)
+					waitRetry = time.Now().UnixMilli() + int64(queue.config.RetryInterval*1000)
+					logrus.Infof("Waiting %d seconds to retry...", queue.config.RetryInterval)
 				}
 			}
-			if !fullSync && len(actions) > 0 {
+			if !queue.fullSync && len(actions) > 0 {
 				errorIndex := -1
 				for i, action := range actions {
 					log := "Starting "
@@ -218,7 +223,7 @@ func (queue *Queue) Start() {
 					}
 					if !ok {
 						errorIndex = i
-						waitRetry = time.Now().UnixMilli() + int64(config.RetryInterval)
+						waitRetry = time.Now().UnixMilli() + int64(queue.config.RetryInterval*1000)
 						break
 					}
 				}
@@ -228,10 +233,15 @@ func (queue *Queue) Start() {
 					actions = []Action{}
 				}
 				if waitRetry > 0 {
-					logrus.Infof("Waiting %d milliseconds to retry... (%d remaining tasks)", config.RetryInterval, len(actions))
+					logrus.Infof("Waiting %d seconds to retry... (%d remaining tasks)", queue.config.RetryInterval, len(actions))
 				}
 			}
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func (queue *Queue) ScheduleFullSync() {
+	logrus.Info("Scheduling to perform full sync...")
+	queue.fullSync = true
 }

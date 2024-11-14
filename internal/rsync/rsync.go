@@ -16,8 +16,8 @@ const secretFile = "/tmp/rsync.secret"
 
 var config *conf.RsyncConfig
 
-func Init(c conf.RsyncConfig) {
-	config = &c
+func Init(c *conf.RsyncConfig) {
+	config = c
 	if len(config.Excludes) > 0 {
 		os.WriteFile(excludesFile, []byte(strings.Join(getExcludeArgs(), "\n")), 0600)
 	}
@@ -40,6 +40,7 @@ func FullSync() bool {
 	if config.Port > 0 && config.Port != 873 {
 		args = append(args, fmt.Sprintf("--port=%d", config.Port))
 	}
+	args = append(args, fmt.Sprintf("--contimeout=%d", config.Timeout))
 	args = append(args, config.RootPath, fmt.Sprintf("rsync://%s@%s/%s/", config.Username, config.Host, config.Space))
 	logrus.Debugf("Execute: rsync %s", strings.Join(args, " "))
 	args = append(args, fmt.Sprintf("--password-file=%s", secretFile))
@@ -73,6 +74,7 @@ func Sync(path string) bool {
 	if config.Port > 0 && config.Port != 873 {
 		args = append(args, fmt.Sprintf("--port=%d", config.Port))
 	}
+	args = append(args, fmt.Sprintf("--contimeout=%d", config.Timeout))
 	args = append(args, config.RootPath+path, fmt.Sprintf("rsync://%s@%s/%s/%s", config.Username, config.Host, config.Space, path))
 	logrus.Debugf("Execute: rsync %s", strings.Join(args, " "))
 	args = append(args, fmt.Sprintf("--password-file=%s", secretFile))
@@ -107,6 +109,7 @@ func Delete(path string) bool {
 	if config.Port > 0 && config.Port != 873 {
 		args = append(args, fmt.Sprintf("--port=%d", config.Port))
 	}
+	args = append(args, fmt.Sprintf("--contimeout=%d", config.Timeout))
 	args = append(args, config.RootPath+parent, fmt.Sprintf("rsync://%s@%s/%s/%s", config.Username, config.Host, config.Space, parent))
 	logrus.Debugf("Execute: rsync %s", strings.Join(args, " "))
 	args = append(args, fmt.Sprintf("--password-file=%s", secretFile))

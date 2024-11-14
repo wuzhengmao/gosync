@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"gosync/conf"
+	"gosync/internal/job"
 	"gosync/internal/rsync"
 	"gosync/internal/watcher"
 	"os"
@@ -59,17 +60,24 @@ func main() {
 	}
 
 	// 初始化RemoteSync
-	rsync.Init(config.Rsync)
+	rsync.Init(&config.Rsync)
 
 	// 初始化同步任务队列
-	queue := &watcher.Queue{}
-	queue.Init(config.Queue)
+	queue := watcher.CreateQueue(&config.Queue)
+
+	// 启动定时任务
+	err = job.Start(config, &queue)
+	if err != nil {
+		logrus.WithError(err).Fatalf("Start scheduled job error: %s", err.Error())
+		os.Exit(2)
+	}
+	defer job.Stop()
 
 	// 初始化并启动监听
-	err = watcher.Start(config.Rsync, queue)
+	err = watcher.Start(&config.Rsync, &queue)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Start watcher error: %s", err.Error())
-		os.Exit(2)
+		os.Exit(3)
 	}
 }
 

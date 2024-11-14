@@ -18,10 +18,12 @@ type RsyncConfig struct {
 	Port        int      `yaml:"port"`
 	Username    string   `yaml:"username"`
 	Password    string   `yaml:"password"`
+	Timeout     int      `yaml:"timeout"`
 	Space       string   `yaml:"space"`
 	RootPath    string   `yaml:"root-path"`
 	Compress    bool     `yaml:"compress"`
 	AllowDelete bool     `yaml:"allow-delete"`
+	FullSync    string   `yaml:"full-sync"`
 	Excludes    []string `yaml:"excludes"`
 }
 
@@ -30,10 +32,17 @@ type QueueConfig struct {
 	QueueCapacity int `yaml:"queue-capacity"`
 }
 
+type JobConfig struct {
+	Cron    string `yaml:"cron"`
+	Command string `yarm:"command"`
+}
+
 type Config struct {
+	Dir    string
 	Logrus LogrusConfig `yaml:"log"`
 	Rsync  RsyncConfig  `yaml:"rsync"`
 	Queue  QueueConfig  `yaml:"queue"`
+	Jobs   []JobConfig  `yaml:"jobs"`
 }
 
 func Load(filename string) (*Config, error) {
@@ -77,6 +86,7 @@ func Load(filename string) (*Config, error) {
 		return nil, err
 	}
 
+	config.Dir = filepath.Dir(configFile)
 	if config.Logrus.Level == "" {
 		config.Logrus.Level = "INFO"
 	} else {
@@ -98,6 +108,14 @@ func Load(filename string) (*Config, error) {
 	} else if !strings.HasSuffix(config.Rsync.RootPath, "/") {
 		config.Rsync.RootPath += "/"
 	}
+	if config.Rsync.FullSync == "" {
+		config.Rsync.FullSync = "startup"
+	} else {
+		config.Rsync.FullSync = strings.ToLower(config.Rsync.FullSync)
+		if config.Rsync.FullSync == "false" {
+			config.Rsync.FullSync = "none"
+		}
+	}
 	if config.Queue.RetryInterval == 0 {
 		config.Queue.RetryInterval = 2000
 	} else if config.Queue.RetryInterval < 0 {
@@ -107,6 +125,14 @@ func Load(filename string) (*Config, error) {
 		config.Queue.QueueCapacity = 100
 	} else if config.Queue.QueueCapacity < 0 {
 		return nil, fmt.Errorf("rsync.queue-capacity must be positive")
+	}
+	for _, job := range config.Jobs {
+		if job.Cron == "" {
+			return nil, fmt.Errorf("job.cron is null")
+		}
+		if job.Command == "" {
+			return nil, fmt.Errorf("job.command is null")
+		}
 	}
 
 	return &config, nil
