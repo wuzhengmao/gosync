@@ -1,0 +1,60 @@
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+
+snapshot:
+  name_template: '{{ .Tag }}'
+checksum:
+  name_template: 'checksums.txt'
+changelog:
+  disable: true
+
+builds:
+  - id: linux-amd64
+    main: cmd/gosync/
+    binary: gosync
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+      - -X gosync/conf.Version={{ .Tag }}
+      - -X main.commit={{ .Commit }}
+      - -X main.buildDate={{ .Date | date "2006-01-02T15-04-05" }}
+  - id: linux-arm64
+    main: cmd/gosync/
+    binary: gosync
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - arm64
+    ldflags:
+      - -s -w
+      - -X gosync/conf.Version={{ .Tag }}
+      - -X main.commit={{ .Commit }}
+      - -X main.buildDate={{ .Date | date "2006-01-02T15-04-05" }}
+
+archives:
+  - id: gosync
+    builds:
+      - linux-amd64
+      - linux-arm64
+    format: tar.gz
+    name_template: "gosync-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - systemd/*
+
+release:
+  github:
+    owner: wuzhengmao
+    name: gosync
+    token: "{{ .Env.GITHUB_TOKEN }}"
+  name_template: "v{{ .Version }}"

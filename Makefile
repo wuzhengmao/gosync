@@ -5,7 +5,7 @@ APP:=gosync
 ROOT:=$(shell pwd -P)
 VERSION:=$(shell grep 'var Version =' ${ROOT}/conf/version.go | cut -d '"' -f2)
 GIT_COMMIT:=$(shell git --work-tree ${ROOT} rev-parse --short 'HEAD^{commit}')
-BUILD_DATE:=$(shell date "+%Y-%m-%d %H:%M:%S")
+BUILD_DATE:=$(shell date "+%Y-%m-%dT%H:%M:%S")
 LDFLAGS:="-w -s -X 'main.commit=$(GIT_COMMIT)' -X 'main.buildDate=$(BUILD_DATE)'"
 STYLE_CHECK_GOFILE  := $$(find . -name '*.go')
 
