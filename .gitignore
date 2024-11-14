@@ -28,3 +28,6 @@ go.work.sum
 gosync.yml
 cmd/test/
 test_scripts/
+
+# dist
+dist/

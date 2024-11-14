@@ -32,7 +32,15 @@ func main() {
 
 	// 显示版本
 	if *showVersion {
-		fmt.Printf("Version: %s\nCommit: %s\nBuild Date: %s\n", conf.Version, commit, buildDate)
+		version := conf.Version
+		if commit != "" {
+			version += "-" + commit
+		}
+		fmt.Printf("gosync %s (%s %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		if buildDate != "" {
+			fmt.Printf("built on %s\n", buildDate)
+		}
+		fmt.Printf("Copyright (c) 2024 Mingy, MTI license\n")
 		os.Exit(0)
 	}
 
@@ -89,7 +97,7 @@ func (f *LogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	for ; ; i++ {
 		pc, _, _, _ := runtime.Caller(i)
 		funcName = runtime.FuncForPC(pc).Name()
-		if !strings.HasPrefix(funcName, "github.com/sirupsen/logrus.") {
+		if !strings.HasPrefix(funcName, "github.com/sirupsen/logrus.") && !strings.HasPrefix(funcName, "gosync/internal/job.CronLogrus.") {
 			break
 		}
 	}
