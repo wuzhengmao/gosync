@@ -10,7 +10,17 @@ import (
 )
 
 type LogrusConfig struct {
-	Level string `yaml:"level"`
+	Level  string        `yaml:"level"`
+	Output string        `yaml:"output"`
+	File   LogFileConfig `yaml:"file"`
+}
+
+type LogFileConfig struct {
+	Path       string `yaml:"path"`
+	MaxSize    int    `yaml:"max-size"`
+	MaxBackups int    `yaml:"max-backups"`
+	MaxAge     int    `yaml:"max-age"`
+	Compress   bool   `yaml:"compress"`
 }
 
 type RsyncConfig struct {
@@ -91,6 +101,19 @@ func Load(filename string) (*Config, error) {
 		config.Logrus.Level = "INFO"
 	} else {
 		config.Logrus.Level = strings.ToUpper(config.Logrus.Level)
+	}
+	if config.Logrus.Output == "" {
+		config.Logrus.Output = "stdout"
+	} else {
+		config.Logrus.Output = strings.ToLower(config.Logrus.Output)
+		if config.Logrus.Output != "stdout" && config.Logrus.Output != "file" {
+			return nil, fmt.Errorf("log.output must be stdout or file")
+		}
+		if config.Logrus.Output == "file" {
+			if config.Logrus.File.Path == "" {
+				return nil, fmt.Errorf("log.file.path is null")
+			}
+		}
 	}
 	if config.Rsync.Host == "" {
 		return nil, fmt.Errorf("rsync.host is null")

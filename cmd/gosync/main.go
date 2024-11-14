@@ -8,11 +8,13 @@ import (
 	"gosync/internal/rsync"
 	"gosync/internal/watcher"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // 定义编译时变量
@@ -65,6 +67,21 @@ func main() {
 		logrus.SetLevel(logrus.ErrorLevel)
 	case "FATAL":
 		logrus.SetLevel(logrus.FatalLevel)
+	}
+	if config.Logrus.Output == "file" {
+		logFile := config.Logrus.File.Path
+		if !filepath.IsAbs(logFile) {
+			workDir, _ := os.Getwd()
+			logFile = workDir + "/" + logFile
+		}
+		logger := &lumberjack.Logger{
+			Filename:   logFile,
+			MaxSize:    config.Logrus.File.MaxSize,
+			MaxBackups: config.Logrus.File.MaxBackups,
+			MaxAge:     config.Logrus.File.MaxAge,
+			Compress:   config.Logrus.File.Compress,
+		}
+		logrus.SetOutput(logger)
 	}
 
 	// 初始化RemoteSync

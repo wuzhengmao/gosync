@@ -46,8 +46,8 @@ func FullSync() bool {
 	args = append(args, fmt.Sprintf("--password-file=%s", secretFile))
 	cmd := exec.Command("rsync", args...)
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdout = logrus.StandardLogger().Out
+		cmd.Stderr = logrus.StandardLogger().Out
 	}
 	err := cmd.Run()
 	if err != nil {
@@ -80,8 +80,8 @@ func Sync(path string) bool {
 	args = append(args, fmt.Sprintf("--password-file=%s", secretFile))
 	cmd := exec.Command("rsync", args...)
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdout = logrus.StandardLogger().Out
+		cmd.Stderr = logrus.StandardLogger().Out
 	}
 	err := cmd.Run()
 	if err != nil {
@@ -115,8 +115,8 @@ func Delete(path string) bool {
 	args = append(args, fmt.Sprintf("--password-file=%s", secretFile))
 	cmd := exec.Command("rsync", args...)
 	if logrus.IsLevelEnabled(logrus.DebugLevel) {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		cmd.Stdout = logrus.StandardLogger().Out
+		cmd.Stderr = logrus.StandardLogger().Out
 	}
 	err := cmd.Run()
 	if err != nil {

@@ -31,3 +31,6 @@ test_scripts/
 
 # dist
 dist/
+
+# log
+logs/
