@@ -1,6 +1,6 @@
 <p align="center">
   <a href="https://github.com/wuzhengmao/gosync">
-    <img src="doc/sync.png" alt="sync - GO sync push service" width="240" /></a>
+    <img src="doc/gosync.png" alt="sync - GO sync push service" width="240" /></a>
 </p>
 
 <p align="center">
