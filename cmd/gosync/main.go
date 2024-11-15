@@ -96,12 +96,12 @@ func main() {
 		// 在后台启动进程
 		child, err := ctx.Reborn()
 		if err != nil {
-			logrus.WithError(err).Fatalf("Start daemon error: %s", err.Error())
+			logrus.WithError(err).Fatalf("Start service error: %s", err.Error())
 			os.Exit(2)
 		}
 		if child != nil {
 			// 如果我们是子进程（即守护进程本身）
-			logrus.Info("GO sync run as a daemon.")
+			logrus.Info("GO sync run as a service.")
 			return
 		}
 		defer ctx.Release() // 当程序结束时释放守护进程资源

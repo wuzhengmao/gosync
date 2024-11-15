@@ -1,5 +1,5 @@
 [Unit]
-Description=GO sync service
+Description=GO sync push service
 After=network.target
 
 [Service]
