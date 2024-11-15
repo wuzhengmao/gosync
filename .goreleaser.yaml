@@ -12,7 +12,7 @@ changelog:
 
 builds:
   - id: linux-amd64
-    main: cmd/gosync/
+    main: ./cmd/gosync/
     binary: gosync
     env:
       - CGO_ENABLED=0
@@ -22,11 +22,11 @@ builds:
       - amd64
     ldflags:
       - -s -w
-      - -X gosync/conf.Version={{ .Tag }}
-      - -X main.commit={{ .Commit }}
-      - -X main.buildDate={{ .Date | date "2006-01-02T15-04-05" }}
+      - -X gosync/conf.Version={{ trimprefix .Tag "v" }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.buildDate={{ .Now.Format "2006-01-02T15:04:05" }}
   - id: linux-arm64
-    main: cmd/gosync/
+    main: ./cmd/gosync/
     binary: gosync
     env:
       - CGO_ENABLED=0
@@ -36,9 +36,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X gosync/conf.Version={{ .Tag }}
-      - -X main.commit={{ .Commit }}
-      - -X main.buildDate={{ .Date | date "2006-01-02T15-04-05" }}
+      - -X gosync/conf.Version={{ trimprefix .Tag "v" }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.buildDate={{ .Now.Format "2006-01-02T15:04:05" }}
 
 archives:
   - id: gosync
@@ -46,7 +46,7 @@ archives:
       - linux-amd64
       - linux-arm64
     format: tar.gz
-    name_template: "gosync-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    name_template: "gosync-{{ .Os }}-{{ .Arch }}"
     wrap_in_directory: true
     files:
       - LICENSE
@@ -56,5 +56,4 @@ release:
   github:
     owner: wuzhengmao
     name: gosync
-    token: "{{ .Env.GITHUB_TOKEN }}"
   name_template: "v{{ .Version }}"
