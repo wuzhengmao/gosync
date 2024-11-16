@@ -55,7 +55,7 @@ cp dist/gosync /usr/local/bin
 # gosync.yml
 log:
   level: info                              # 日志等级：debug/info(default)/warn/error/fatal
-  output: file                             # 日志输出：stdout(default)/file
+  output: file                             # 日志输出：stdout(default)/syslog/file
   file:                                    # 使用文件日志时需要设置
     path: /var/log/gosync/gosync.log       # 日志文件路径
     max-size: 100                          # 单个日志文件大小限制(M)

@@ -106,8 +106,8 @@ func Load(filename string) (*Config, error) {
 		config.Logrus.Output = "stdout"
 	} else {
 		config.Logrus.Output = strings.ToLower(config.Logrus.Output)
-		if config.Logrus.Output != "stdout" && config.Logrus.Output != "file" {
-			return nil, fmt.Errorf("log.output must be stdout or file")
+		if config.Logrus.Output != "stdout" && config.Logrus.Output != "syslog" && config.Logrus.Output != "file" {
+			return nil, fmt.Errorf("log.output must be stdout syslog or file")
 		}
 		if config.Logrus.Output == "file" {
 			if config.Logrus.File.Path == "" {

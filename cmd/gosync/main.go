@@ -7,6 +7,7 @@ import (
 	"gosync/internal/job"
 	"gosync/internal/rsync"
 	"gosync/internal/watcher"
+	"log/syslog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/sevlyar/go-daemon"
 	"github.com/sirupsen/logrus"
+	syslogHook "github.com/sirupsen/logrus/hooks/syslog"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -34,19 +36,31 @@ func main() {
 	showVersion := flag.Bool("version", false, "show version information")
 	flag.Parse()
 
+	// 显示banner
+	fmt.Print(`     ___    ___                           
+    / _ \  /___\  ___  _   _  _ __    ___ 
+   / /_\/ //  // / __|| | | || '_ \  / __|
+  / /_\\ / \_//  \__ \| |_| || | | || (__ 
+  \____/ \___/   |___/ \__, ||_| |_| \___|
+                       |___/              
+
+`)
+
 	// 显示版本
+	version := conf.Version
+	if commit != "" {
+		version += "-" + commit
+	}
+	fmt.Printf("gosync %s (%s %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 	if *showVersion {
-		version := conf.Version
-		if commit != "" {
-			version += "-" + commit
-		}
-		fmt.Printf("gosync %s (%s %s/%s)\n", version, runtime.Version(), runtime.GOOS, runtime.GOARCH)
 		if buildDate != "" {
 			fmt.Printf("built on %s\n", buildDate)
 		}
 		fmt.Printf("Copyright (c) 2024 Mingy, MTI license\n")
+		fmt.Println()
 		os.Exit(0)
 	}
+	fmt.Println()
 
 	// 加载配置
 	config, err := conf.Load(*configFile)
@@ -84,6 +98,14 @@ func main() {
 			Compress:   config.Logrus.File.Compress,
 		}
 		logrus.SetOutput(logger)
+	} else if config.Logrus.Output == "syslog" {
+		hook, err := syslogHook.NewSyslogHook("", "", syslog.LOG_INFO|syslog.LOG_LOCAL0, "gosync")
+		if err != nil {
+			logrus.Fatalf("Failed to connect to syslog: %v", err)
+		}
+		logrus.AddHook(hook)
+		blackhole, _ := os.OpenFile("/dev/null", os.O_WRONLY, 0644)
+		logrus.SetOutput(blackhole)
 	}
 
 	// 后台进程
@@ -137,7 +159,7 @@ func (f *LogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 	for ; ; i++ {
 		pc, _, _, _ := runtime.Caller(i)
 		funcName = runtime.FuncForPC(pc).Name()
-		if !strings.HasPrefix(funcName, "github.com/sirupsen/logrus.") && !strings.HasPrefix(funcName, "gosync/internal/job.CronLogrus.") {
+		if !strings.HasPrefix(funcName, "github.com/sirupsen/logrus") && !strings.HasPrefix(funcName, "gosync/internal/job.CronLogrus.") {
 			break
 		}
 	}
