@@ -19,5 +19,5 @@ vendor-ci:
 
 build:
 	echo "Building version $(VERSION)..."
-	go build -ldflags $(LDFLAGS) -o dist/$(APP) cmd/gosync/main.go
+	CGO_ENABLED=0 go build -ldflags $(LDFLAGS) -o dist/$(APP) cmd/gosync/main.go
 	echo "Build successfully."

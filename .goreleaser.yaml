@@ -25,6 +25,7 @@ builds:
       - -X gosync/conf.Version={{ trimprefix .Tag "v" }}
       - -X main.commit={{ .ShortCommit }}
       - -X main.buildDate={{ .Now.Format "2006-01-02T15:04:05" }}
+  
   - id: linux-arm64
     main: ./cmd/gosync/
     binary: gosync
@@ -57,3 +58,43 @@ release:
     owner: wuzhengmao
     name: gosync
   name_template: "v{{ .Version }}"
+
+dockers:
+  - image_templates:
+      - wuzm219/gosync:{{ .Tag }}-amd64
+    goos: linux
+    goarch: amd64
+    ids:
+      - linux-amd64
+    dockerfile: docker/Dockerfile.goreleaser
+    extra_files:
+      - docker/docker-entrypoint.sh
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--network=host"
+
+  - image_templates:
+      - wuzm219/gosync:{{ .Tag }}-arm64
+    goos: linux
+    goarch: arm64
+    ids:
+      - linux-arm64
+    dockerfile: docker/Dockerfile.goreleaser
+    extra_files:
+      - docker/docker-entrypoint.sh
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64"
+      - "--network=host"
+
+docker_manifests:
+  - name_template: wuzm219/gosync:{{ .Tag }}
+    image_templates:
+      - wuzm219/gosync:{{ .Tag }}-amd64
+      - wuzm219/gosync:{{ .Tag }}-arm64
+
+  - name_template: wuzm219/gosync:latest
+    image_templates:
+      - wuzm219/gosync:{{ .Tag }}-amd64
+      - wuzm219/gosync:{{ .Tag }}-arm64

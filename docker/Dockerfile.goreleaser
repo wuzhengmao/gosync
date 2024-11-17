@@ -1,0 +1,14 @@
+FROM alpine:latest
+LABEL maintainer="Mingy <master@mingy.org>"
+
+RUN apk add --no-cache tzdata rsync && \
+    ln -snf /usr/share/zoneinfo/$TIME_ZONE /etc/localtime && \
+    echo $TIME_ZONE > /etc/timezone
+
+ADD gosync /usr/bin/
+ADD docker/docker-entrypoint.sh /
+RUN chmod +x /usr/bin/gosync && \
+    chmod +x docker-entrypoint.sh
+
+CMD ["gosync"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
