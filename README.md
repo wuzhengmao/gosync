@@ -45,6 +45,11 @@ make
 cp dist/gosync /usr/local/bin
 ```
 
+#### Docker镜像
+```bash
+docker run -itd --name gosync -v gosync/:/etc/gosync/ wuzm219/gosync
+```
+
 ## 运行
 
 #### 配置文件
