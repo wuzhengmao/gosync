@@ -15,6 +15,8 @@
 - 以GO语音开发，可以运行在不同架构的Linux平台上
 - 监听本地目录的变化，并对可以归并的变更进行合并和剔除，提高同步的效率
 - 每次启动工具可以先进行一次全量同步
+- 支持动态指定全量同步的范围
+- 支持ant表达式指定排除规则
 - 支持禁止同步删除
 - 支持失败重试，当失败队列超过阈值，可以触发全量同步
 - 支持定时任务，可以灵活的定制一些策略，比如删除本地一周前的数据
@@ -59,35 +61,36 @@ docker run -itd --name gosync -v gosync/:/etc/gosync/ wuzm219/gosync
 ```yml
 # gosync.yml
 log:
-  level: info                              # 日志等级：debug/info(default)/warn/error/fatal
-  output: file                             # 日志输出：stdout(default)/syslog/file
-  file:                                    # 使用文件日志时需要设置
-    path: /var/log/gosync/gosync.log       # 日志文件路径
-    max-size: 100                          # 单个日志文件大小限制(M)
-    max-backups: 10                        # 日志备份数
-    max-age: 30                            # 保留多少天日志
-    compress: true                         # 压缩日志归档
+  level: info                                  # 日志等级：debug/info(default)/warn/error/fatal
+  output: file                                 # 日志输出：stdout(default)/syslog/file
+  file:                                        # 使用文件日志时需要设置
+    path: /var/log/gosync/gosync.log           # 日志文件路径
+    max-size: 100                              # 单个日志文件大小限制(M)
+    max-backups: 10                            # 日志备份数
+    max-age: 30                                # 保留多少天日志
+    compress: true                             # 压缩日志归档
 rsync:
-  host: 10.168.4.210                       # 远端rsyncd服务主机名或IP
-  port: 873                                # 远端rsyncd服务端口，873为rsync协议的默认端口
-  username: test                           # 连接远端rsyncd服务的用户名
-  password: 123456                         # 连接远端rsyncd服务的密码
-  timeout: 3                               # 连接远端rsyncd服务的超时时间(秒)
-  space: hub                               # 对应远端rsyncd服务的模块
-  root-path: /path/to/sync                 # 本地同步目录
-  compress: false                          # 传输时是否启用压缩：true/false(default)
-  allow-delete: false                      # 是否允许删除远端：true/false(default)
-  full-sync: "startup"                     # 执行全量同步：startup(default 启动时执行)/none(不执行)/cron表达式(以定时任务的方式执行)
-  excludes:                                # 配置排除同步的规则，示例中排除了vi产生的临时文件
+  host: 10.168.4.210                           # 远端rsyncd服务主机名或IP
+  port: 873                                    # 远端rsyncd服务端口，873为rsync协议的默认端口
+  username: test                               # 连接远端rsyncd服务的用户名
+  password: 123456                             # 连接远端rsyncd服务的密码
+  timeout: 3s                                  # 连接远端rsyncd服务的超时时间
+  space: hub                                   # 对应远端rsyncd服务的模块
+  root-path: /path/to/sync                     # 监听的本地同步目录
+  watch-scope-eval: scripts/get-watch-scope.sh # 可进一步指定哪些子路径在监听范围
+  compress: false                              # 传输时是否启用压缩：true/false(default)
+  allow-delete: false                          # 是否允许删除远端：true/false(default)
+  full-sync: "startup"                         # 执行全量同步：startup(default 启动时执行)/none(不执行)/cron表达式(以定时任务的方式执行)
+  excludes:                                    # 配置排除同步的规则，示例中排除了vi产生的临时文件
     - "**/*.swp"
     - "**/*.swpx"
     - "**/4913"
 queue:
-  retry-interval: 2                        # 失败重试的时间间隔(秒)
-  queue-capacity: 100                      # 同步队列的最大容量，超过这个容量会触发全量同步
+  retry-interval: 2s                           # 失败重试的时间间隔
+  queue-capacity: 100                          # 同步队列的最大容量，超过这个容量会触发全量同步
 jobs:
-  - cron: "0 2 * * ?"                      # 定时任务执行时间，支持标准cron表达式，也支持@every/@after+?h?m?s的方式指定
-    command: scripts/cleanup-7days-up.sh   # 可执行命令，运行的工作目录为配置文件所在目录
+  - cron: "0 2 * * ?"                          # 定时任务执行时间，支持标准cron表达式，也支持@every/@after+?h?m?s的方式指定
+    command: scripts/cleanup-7days-up.sh       # 可执行命令，运行的工作目录为配置文件所在目录
 ```
 
 ```bash

@@ -130,7 +130,11 @@ func main() {
 	}
 
 	// 初始化RemoteSync
-	rsync.Init(&config.Rsync)
+	err = rsync.Init(config)
+	if err != nil {
+		logrus.WithError(err).Fatalf("Initialize rsync error: %s", err.Error())
+		os.Exit(3)
+	}
 
 	// 初始化同步任务队列
 	queue := watcher.CreateQueue(&config.Queue)
@@ -139,7 +143,7 @@ func main() {
 	err = job.Start(config, &queue)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Start scheduled job error: %s", err.Error())
-		os.Exit(3)
+		os.Exit(4)
 	}
 	defer job.Stop()
 
@@ -147,7 +151,7 @@ func main() {
 	err = watcher.Start(&config.Rsync, &queue)
 	if err != nil {
 		logrus.WithError(err).Fatalf("Start watcher error: %s", err.Error())
-		os.Exit(4)
+		os.Exit(5)
 	}
 }
 
@@ -170,9 +174,9 @@ func (f *LogFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 			logMessage += fmt.Sprintf("\nError: %s", err)
 			// 获取堆栈信息
 			stackTrace := string(debug.Stack())
-			// 跳过前8层堆栈信息
-			stackTrace = strings.Join(strings.Split(stackTrace, "\n")[i*2:], "\n")
-			logMessage += fmt.Sprintf("\nStack Trace: %s", stackTrace)
+			// 跳过调用日志库的堆栈信息
+			stackTrace = strings.Join(strings.Split(stackTrace, "\n")[(i+1)*2+1:], "\n")
+			logMessage += fmt.Sprintf("\nStack Trace: \n%s", stackTrace)
 		}
 	}
 	return []byte(fmt.Sprintf("%s [%-5s] [%s] - %s\n", entry.Time.Format("2006-01-02 15:04:05"), strings.ToUpper(entry.Level.String()), funcName, logMessage)), nil

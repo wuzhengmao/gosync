@@ -96,7 +96,7 @@ func run(command string) bool {
 		}
 		err := cmd.Run()
 		if err != nil {
-			logrus.WithError(err).Errorf("Run job failed.")
+			logrus.WithError(err).Error("Run job failed.")
 			return false
 		} else {
 			logrus.Info("Run job successfully.")

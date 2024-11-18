@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"gosync/conf"
 	"gosync/internal/rsync"
+	"math"
 	"strings"
 	"time"
 
@@ -171,6 +172,7 @@ func (queue *Queue) take() []Action {
 
 func (queue *Queue) Start() {
 	actions := []Action{}
+	retryInterval, _ := time.ParseDuration(queue.config.RetryInterval)
 	waitRetry := int64(0)
 	for {
 		actions = append(actions, queue.take()...)
@@ -184,8 +186,8 @@ func (queue *Queue) Start() {
 				actions = []Action{}
 			}
 		} else {
-			if len(actions) > queue.config.QueueCapacity {
-				logrus.Warnf("The size of sync task queue exceeds %d, it will be converted to perform full sync.", queue.config.QueueCapacity)
+			if len(actions) > queue.config.Capacity {
+				logrus.Warnf("The size of sync task queue exceeds %d, it will be converted to perform full sync.", queue.config.Capacity)
 				queue.fullSync = true
 				actions = []Action{}
 			}
@@ -196,8 +198,8 @@ func (queue *Queue) Start() {
 				if rsync.FullSync() {
 					queue.fullSync = false
 				} else {
-					waitRetry = time.Now().UnixMilli() + int64(queue.config.RetryInterval*1000)
-					logrus.Infof("Waiting %d seconds to retry...", queue.config.RetryInterval)
+					waitRetry = time.Now().Add(retryInterval).UnixMilli()
+					logrus.Infof("Waiting %d seconds to retry...", int(math.Ceil(retryInterval.Seconds())))
 				}
 			}
 			if !queue.fullSync && len(actions) > 0 {
@@ -223,7 +225,7 @@ func (queue *Queue) Start() {
 					}
 					if !ok {
 						errorIndex = i
-						waitRetry = time.Now().UnixMilli() + int64(queue.config.RetryInterval*1000)
+						waitRetry = time.Now().Add(retryInterval).UnixMilli()
 						break
 					}
 				}
@@ -233,7 +235,7 @@ func (queue *Queue) Start() {
 					actions = []Action{}
 				}
 				if waitRetry > 0 {
-					logrus.Infof("Waiting %d seconds to retry... (%d remaining tasks)", queue.config.RetryInterval, len(actions))
+					logrus.Infof("Waiting %d seconds to retry... (%d remaining tasks)", int(math.Ceil(retryInterval.Seconds())), len(actions))
 				}
 			}
 		}

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -24,22 +25,23 @@ type LogFileConfig struct {
 }
 
 type RsyncConfig struct {
-	Host        string   `yaml:"host"`
-	Port        int      `yaml:"port"`
-	Username    string   `yaml:"username"`
-	Password    string   `yaml:"password"`
-	Timeout     int      `yaml:"timeout"`
-	Space       string   `yaml:"space"`
-	RootPath    string   `yaml:"root-path"`
-	Compress    bool     `yaml:"compress"`
-	AllowDelete bool     `yaml:"allow-delete"`
-	FullSync    string   `yaml:"full-sync"`
-	Excludes    []string `yaml:"excludes"`
+	Host           string   `yaml:"host"`
+	Port           int      `yaml:"port"`
+	Username       string   `yaml:"username"`
+	Password       string   `yaml:"password"`
+	Timeout        string   `yaml:"timeout"`
+	Space          string   `yaml:"space"`
+	RootPath       string   `yaml:"root-path"`
+	WatchScopeEval string   `yaml:"watch-scope-eval"`
+	Compress       bool     `yaml:"compress"`
+	AllowDelete    bool     `yaml:"allow-delete"`
+	FullSync       string   `yaml:"full-sync"`
+	Excludes       []string `yaml:"excludes"`
 }
 
 type QueueConfig struct {
-	RetryInterval int `yaml:"retry-interval"`
-	QueueCapacity int `yaml:"queue-capacity"`
+	RetryInterval string `yaml:"retry-interval"`
+	Capacity      int    `yaml:"capacity"`
 }
 
 type JobConfig struct {
@@ -121,6 +123,12 @@ func Load(filename string) (*Config, error) {
 	if config.Rsync.Username == "" {
 		return nil, fmt.Errorf("rsync.username is null")
 	}
+	if config.Rsync.Timeout != "" {
+		_, err := time.ParseDuration(config.Rsync.Timeout)
+		if err != nil {
+			return nil, fmt.Errorf("rsync.timeout format is invalid")
+		}
+	}
 	if config.Rsync.Space == "" {
 		return nil, fmt.Errorf("rsync.space is null")
 	}
@@ -139,15 +147,18 @@ func Load(filename string) (*Config, error) {
 			config.Rsync.FullSync = "none"
 		}
 	}
-	if config.Queue.RetryInterval == 0 {
-		config.Queue.RetryInterval = 2000
-	} else if config.Queue.RetryInterval < 0 {
-		return nil, fmt.Errorf("rsync.retry-interval must be positive")
+	if config.Queue.RetryInterval == "" {
+		config.Queue.RetryInterval = "2s"
+	} else {
+		_, err := time.ParseDuration(config.Queue.RetryInterval)
+		if err != nil {
+			return nil, fmt.Errorf("queue.retry-interval format is invalid")
+		}
 	}
-	if config.Queue.QueueCapacity == 0 {
-		config.Queue.QueueCapacity = 100
-	} else if config.Queue.QueueCapacity < 0 {
-		return nil, fmt.Errorf("rsync.queue-capacity must be positive")
+	if config.Queue.Capacity == 0 {
+		config.Queue.Capacity = 100
+	} else if config.Queue.Capacity < 0 {
+		return nil, fmt.Errorf("queue.capacity must be positive")
 	}
 	for _, job := range config.Jobs {
 		if job.Cron == "" {

@@ -3,28 +3,39 @@ package rsync
 import (
 	"fmt"
 	"gosync/conf"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
 
 var config *conf.RsyncConfig
+var workdir = ""
 var excludesFile = ""
 var secretFile = ""
 
-func Init(c *conf.RsyncConfig) {
-	config = c
+func Init(c *conf.Config) error {
+	config = &c.Rsync
+	workdir = c.Dir
 	if len(config.Excludes) > 0 {
 		excludesFile = "/tmp/rsync.excludes"
-		os.WriteFile(excludesFile, []byte(strings.Join(getExcludeArgs(), "\n")), 0600)
+		err := os.WriteFile(excludesFile, []byte(strings.Join(getExcludes(), "\n")), 0600)
+		if err != nil {
+			return err
+		}
 	}
 	if config.Password != "" {
 		secretFile = "/tmp/rsync.secret"
-		os.WriteFile(secretFile, []byte(config.Password), 0600)
+		err := os.WriteFile(secretFile, []byte(config.Password), 0600)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func FullSync() bool {
@@ -40,10 +51,20 @@ func FullSync() bool {
 	if excludesFile != "" {
 		args = append(args, fmt.Sprintf("--exclude-from=%s", excludesFile))
 	}
+	includeFiles, err := getIncludes()
+	if err != nil {
+		logrus.WithError(err).Error("Execute rsync failed.")
+		return false
+	} else if includeFiles != "" {
+		args = append(args, fmt.Sprintf("--include-from=%s", includeFiles), "--exclude='*'")
+	}
 	if config.Port > 0 && config.Port != 873 {
 		args = append(args, fmt.Sprintf("--port=%d", config.Port))
 	}
-	args = append(args, fmt.Sprintf("--contimeout=%d", config.Timeout))
+	if config.Timeout != "" {
+		timeout, _ := time.ParseDuration(config.Timeout)
+		args = append(args, fmt.Sprintf("--contimeout=%d", int(math.Ceil(timeout.Seconds()))))
+	}
 	args = append(args, config.RootPath, fmt.Sprintf("rsync://%s@%s/%s/", config.Username, config.Host, config.Space))
 	logrus.Debugf("Execute: rsync %s", strings.Join(args, " "))
 	if secretFile != "" {
@@ -54,9 +75,9 @@ func FullSync() bool {
 		cmd.Stdout = logrus.StandardLogger().Out
 		cmd.Stderr = logrus.StandardLogger().Out
 	}
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
-		logrus.WithError(err).Errorf("Execute rsync failed.")
+		logrus.WithError(err).Error("Execute rsync failed.")
 		return false
 	} else {
 		logrus.Info("Execute rsync successfully.")
@@ -79,7 +100,10 @@ func Sync(path string) bool {
 	if config.Port > 0 && config.Port != 873 {
 		args = append(args, fmt.Sprintf("--port=%d", config.Port))
 	}
-	args = append(args, fmt.Sprintf("--contimeout=%d", config.Timeout))
+	if config.Timeout != "" {
+		timeout, _ := time.ParseDuration(config.Timeout)
+		args = append(args, fmt.Sprintf("--contimeout=%d", int(math.Ceil(timeout.Seconds()))))
+	}
 	args = append(args, config.RootPath+path, fmt.Sprintf("rsync://%s@%s/%s/%s", config.Username, config.Host, config.Space, path))
 	logrus.Debugf("Execute: rsync %s", strings.Join(args, " "))
 	if secretFile != "" {
@@ -92,7 +116,7 @@ func Sync(path string) bool {
 	}
 	err := cmd.Run()
 	if err != nil {
-		logrus.WithError(err).Errorf("Execute rsync failed.")
+		logrus.WithError(err).Error("Execute rsync failed.")
 		return false
 	} else {
 		logrus.Info("Execute rsync successfully.")
@@ -116,7 +140,10 @@ func Delete(path string) bool {
 	if config.Port > 0 && config.Port != 873 {
 		args = append(args, fmt.Sprintf("--port=%d", config.Port))
 	}
-	args = append(args, fmt.Sprintf("--contimeout=%d", config.Timeout))
+	if config.Timeout != "" {
+		timeout, _ := time.ParseDuration(config.Timeout)
+		args = append(args, fmt.Sprintf("--contimeout=%d", int(math.Ceil(timeout.Seconds()))))
+	}
 	args = append(args, config.RootPath+parent, fmt.Sprintf("rsync://%s@%s/%s/%s", config.Username, config.Host, config.Space, parent))
 	logrus.Debugf("Execute: rsync %s", strings.Join(args, " "))
 	if secretFile != "" {
@@ -129,7 +156,7 @@ func Delete(path string) bool {
 	}
 	err := cmd.Run()
 	if err != nil {
-		logrus.WithError(err).Errorf("Execute rsync failed.")
+		logrus.WithError(err).Error("Execute rsync failed.")
 		return false
 	} else {
 		logrus.Info("Execute rsync successfully.")
@@ -137,7 +164,57 @@ func Delete(path string) bool {
 	}
 }
 
-func getExcludeArgs() []string {
+func GetWatchFolders() ([]string, error) {
+	if config.WatchScopeEval == "" {
+		return nil, nil
+	}
+	v := strings.Split(config.WatchScopeEval, " ")
+	cmd := exec.Command(v[0], v[1:]...)
+	cmd.Dir = workdir
+	cmd.Env = append(os.Environ(),
+		"RSYNC_ROOT_PATH="+config.RootPath,
+	)
+	stdout, err := cmd.CombinedOutput()
+	str := string(stdout)
+	if err != nil {
+		logrus.WithError(err).Errorf("Get watch folders error: %s", str)
+		return nil, err
+	} else {
+		logrus.Debugf("Get watch folders returns: \n%s", str)
+		folders := strings.Split(str, "\n")
+		out := []string{}
+		for _, folder := range folders {
+			folder = strings.TrimSpace(folder)
+			if folder != "" {
+				if folder == "/" {
+					return nil, nil
+				} else {
+					folder = strings.TrimPrefix(folder, "/")
+					if !strings.HasSuffix(folder, "/") {
+						folder += "/"
+					}
+				}
+				out = append(out, folder)
+			}
+		}
+		return out, nil
+	}
+}
+
+func getIncludes() (string, error) {
+	folders, err := GetWatchFolders()
+	if err != nil {
+		return "", err
+	} else if folders == nil {
+		return "", nil
+	} else {
+		includesFile := "/tmp/rsync.includes"
+		err := os.WriteFile(includesFile, []byte(strings.Join(folders, "\n")), 0600)
+		return includesFile, err
+	}
+}
+
+func getExcludes() []string {
 	args := []string{}
 	for _, exclude := range config.Excludes {
 		exclude = strings.TrimPrefix(exclude, "/")
