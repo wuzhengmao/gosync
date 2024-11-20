@@ -169,7 +169,7 @@ func isExclude(excludes *[]string, path string) bool {
 }
 
 func shouldWatch(includes *[]string, path string) bool {
-	if includes == nil {
+	if includes == nil || path == "." || path == "./" {
 		return true
 	}
 	for _, include := range *includes {
