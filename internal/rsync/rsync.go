@@ -86,6 +86,11 @@ func FullSync() bool {
 }
 
 func Sync(path string) bool {
+	_, err := os.Stat(config.RootPath + path)
+	if err != nil {
+		logrus.Warn("Ignore rsync because path is not exists.")
+		return true
+	}
 	options := "-av"
 	if config.Compress {
 		options += "z"
@@ -114,7 +119,7 @@ func Sync(path string) bool {
 		cmd.Stdout = logrus.StandardLogger().Out
 		cmd.Stderr = logrus.StandardLogger().Out
 	}
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		logrus.WithError(err).Error("Execute rsync failed.")
 		return false
