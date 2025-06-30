@@ -30,6 +30,7 @@ type RsyncConfig struct {
 	Username       string   `yaml:"username"`
 	Password       string   `yaml:"password"`
 	Timeout        string   `yaml:"timeout"`
+	IOTimeout      string   `yaml:"io-timeout"`
 	Space          string   `yaml:"space"`
 	RootPath       string   `yaml:"root-path"`
 	WatchScopeEval string   `yaml:"watch-scope-eval"`

@@ -65,6 +65,10 @@ func FullSync() bool {
 		timeout, _ := time.ParseDuration(config.Timeout)
 		args = append(args, fmt.Sprintf("--contimeout=%d", int(math.Ceil(timeout.Seconds()))))
 	}
+	if config.IOTimeout != "" {
+		timeout, _ := time.ParseDuration(config.IOTimeout)
+		args = append(args, fmt.Sprintf("--timeout=%d", int(math.Ceil(timeout.Seconds()))))
+	}
 	args = append(args, config.RootPath, fmt.Sprintf("rsync://%s@%s/%s/", config.Username, config.Host, config.Space))
 	logrus.Debugf("Execute: rsync %s", strings.Join(args, " "))
 	if secretFile != "" {

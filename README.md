@@ -75,6 +75,7 @@ rsync:
   username: test                               # 连接远端rsyncd服务的用户名
   password: 123456                             # 连接远端rsyncd服务的密码
   timeout: 3s                                  # 连接远端rsyncd服务的超时时间
+  io-timeout: 30s                              # 数据传输的超时时间
   space: hub                                   # 对应远端rsyncd服务的模块
   root-path: /path/to/sync                     # 监听的本地同步目录
   watch-scope-eval: scripts/get-watch-scope.sh # 可进一步指定哪些子路径在监听范围
